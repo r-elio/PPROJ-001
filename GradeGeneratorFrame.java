@@ -29,8 +29,7 @@ public class GradeGeneratorFrame extends JFrame {
     private JTextField statusField;
 
     private static final String[] SUBJECTS = {"MTB","Filipino","English",
-                                              "Math","AP",
-                                              "ESP","Music",
+                                              "Math","AP", "ESP","Music",
                                               "Arts","PE","Health"};
 
     public GradeGeneratorFrame(){
