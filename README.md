@@ -1,5 +1,5 @@
 # PPROJ-001
- Random Generated Grade with File Handling
+ Randomly Generated Grade with File Handling
 
 Input: Exam Grade and Target Grade
 
