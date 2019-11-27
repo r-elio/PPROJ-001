@@ -140,11 +140,11 @@ public class GradeGeneratorFrame extends JFrame {
         buttonPanel.add(setupButton, constraints);
 
         sourceLabel = new JLabel("Source:");
-        sourceField = new JTextField(25);
+        sourceField = new JTextField(30);
         sourceField.setEditable(false);
 
         statusLabel = new JLabel("Status:");
-        statusField = new JTextField(25);
+        statusField = new JTextField(30);
         statusField.setEditable(false);
 
         statusPanel = new JPanel(new GridBagLayout());
@@ -170,8 +170,6 @@ public class GradeGeneratorFrame extends JFrame {
         constraints.gridy = 1;
         constraints.anchor = GridBagConstraints.WEST;
         statusPanel.add(statusField, constraints);
-
-        statusPanel.setBorder(BorderFactory.createLineBorder(Color.BLACK));
 
         gradePanel = new JPanel(new GridBagLayout());
         constraints.insets = new Insets(10, 10, 10, 10);
