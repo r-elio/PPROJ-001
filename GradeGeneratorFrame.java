@@ -31,6 +31,7 @@ public class GradeGeneratorFrame extends JFrame {
     private JLabel statusLabel;
     private JTextField statusField;
     private JButton generateButton;
+    private JButton resetButton;
 
     private ArrayList<Integer> srcGrades;
     private ArrayList<Integer[]> grades;
@@ -270,58 +271,71 @@ public class GradeGeneratorFrame extends JFrame {
     private class SourceListener implements ActionListener {
         @Override
         public void actionPerformed(ActionEvent event) {
-            try {
-                JFileChooser sourceFile = new JFileChooser();
-                sourceFile.showOpenDialog(rootPane);
+            if (srcGrades != null){
+                int response = JOptionPane.showConfirmDialog(rootPane, "Do you want to change the grade source?", 
+                "Grade Source", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
+                if (response == JOptionPane.YES_OPTION){
+                    setGradeSource();
+                }
+            }
+            else {
+                setGradeSource();
+            }
+        }
+    }
 
-                FileReader fReader = new FileReader(sourceFile.getSelectedFile());
-                BufferedReader bReader = new BufferedReader(fReader);
+    private void setGradeSource(){
+        try {
+            JFileChooser sourceFile = new JFileChooser();
+            sourceFile.showOpenDialog(rootPane);
 
-                ArrayList<Integer> tempGrades = new ArrayList<Integer>();
+            FileReader fReader = new FileReader(sourceFile.getSelectedFile());
+            BufferedReader bReader = new BufferedReader(fReader);
 
-                String gradeStr = null;
-                while ((gradeStr = bReader.readLine()) != null){
+            ArrayList<Integer> tempGrades = new ArrayList<Integer>();
 
-                    if (gradeStr.isEmpty()){
-                        bReader.close();
-                        throw new IOException("Empty String Detected!");
-                    }
+            String gradeStr = null;
+            while ((gradeStr = bReader.readLine()) != null){
 
-                    Integer grade = Integer.valueOf(gradeStr);
-
-                    tempGrades.add(grade);
+                if (gradeStr.isEmpty()){
+                    bReader.close();
+                    throw new IOException("Empty String Detected!");
                 }
 
-                String sourceStr = sourceFile.getSelectedFile().toString();
-                statusField.setText("The source file has been retrieved successfully.");
-                sourceField.setText(sourceStr);
+                Integer grade = Integer.valueOf(gradeStr);
 
-                srcGrades = tempGrades;
+                tempGrades.add(grade);
+            }
 
-                bReader.close();
-            }
-            catch (IOException e){
-                JOptionPane.showMessageDialog(rootPane, "IOException:\n" 
-                + e.getMessage(), "I/O Exception", JOptionPane.ERROR_MESSAGE);
-                statusField.setText("The source file has not been retrieved successfully.");
-            }
-            catch (NumberFormatException e){
-                JOptionPane.showMessageDialog(rootPane, "NumberFormatException:\n" 
-                + e.getMessage(), "Number Format Exception", JOptionPane.ERROR_MESSAGE);
-                statusField.setText("The source file has not been retrieved successfully.");
-            }
-            catch (NullPointerException e){
-                // Expected Exception
-            }
-            catch (Exception e){
-                e.printStackTrace();
-				JOptionPane.showMessageDialog(rootPane, "Unimplemented Exception:\n" 
-				+ e.getMessage(), "Error!", JOptionPane.ERROR_MESSAGE);
-            }
-            finally {
-                if (wrWorkHPS != null && perfTaskHPS != null && !(sourceField.getText().isEmpty())){
-                    statusField.setText("The Grade Generator is ready for use.");
-                }
+            String sourceStr = sourceFile.getSelectedFile().toString();
+            statusField.setText("The source file has been retrieved successfully.");
+            sourceField.setText(sourceStr);
+
+            srcGrades = tempGrades;
+
+            bReader.close();
+        }
+        catch (IOException e){
+            JOptionPane.showMessageDialog(rootPane, "IOException:\n" 
+            + e.getMessage(), "I/O Exception", JOptionPane.ERROR_MESSAGE);
+            statusField.setText("The source file has not been retrieved successfully.");
+        }
+        catch (NumberFormatException e){
+            JOptionPane.showMessageDialog(rootPane, "NumberFormatException:\n" 
+            + e.getMessage(), "Number Format Exception", JOptionPane.ERROR_MESSAGE);
+            statusField.setText("The source file has not been retrieved successfully.");
+        }
+        catch (NullPointerException e){
+            // Expected Exception
+        }
+        catch (Exception e){
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(rootPane, "Unimplemented Exception:\n" 
+            + e.getMessage(), "Error!", JOptionPane.ERROR_MESSAGE);
+        }
+        finally {
+            if (wrWorkHPS != null && perfTaskHPS != null && !(sourceField.getText().isEmpty())){
+                statusField.setText("The Grade Generator is ready for use.");
             }
         }
     }
@@ -354,7 +368,7 @@ public class GradeGeneratorFrame extends JFrame {
         Object[] prompt = new Object[(2 * (workItem + taskItem + 1))];
         int pIndex = 0;
 
-        Object[] options = {"Save","Cancel"};
+        Object[] options = {"Save","Reset","Cancel"};
 
         for (int i = 0; i < workItem; ++i){
             workLabels[i] = new JLabel("Written Work # "+(i+1));
@@ -373,8 +387,23 @@ public class GradeGeneratorFrame extends JFrame {
         prompt[pIndex++] = examLabel.getText();
         prompt[pIndex++] = examField;
 
+        if (wrWorkHPS != null && perfTaskHPS != null){
+            for (int i = 0; i < workItem; ++i){
+                String workStr = String.valueOf(wrWorkHPS[i]);
+                workFields[i].setText(workStr);
+            }
+
+            for (int i = 0; i < taskItem; ++i){
+                String taskStr = String.valueOf(perfTaskHPS[i]);
+                taskFields[i].setText(taskStr);
+            }
+
+            String examStr = String.valueOf(examHPS);
+            examField.setText(examStr);
+        }
+
         JOptionPane optionPane = new JOptionPane(prompt, JOptionPane.PLAIN_MESSAGE, 
-        JOptionPane.OK_CANCEL_OPTION, null, options, options[0]);
+        JOptionPane.OK_CANCEL_OPTION, null, options);
 
         String subject = String.valueOf(subjectBox.getSelectedItem());
 
@@ -448,6 +477,9 @@ public class GradeGeneratorFrame extends JFrame {
                                 return;
                             }
 
+                            wrWorkSpinner.setEnabled(false);
+                            perfTaskSpinner.setEnabled(false);
+
                             wrWorkHPS = workHPS;
                             perfTaskHPS = taskHPS;
                             examHPS = examTemp;
@@ -470,6 +502,17 @@ public class GradeGeneratorFrame extends JFrame {
                     }
                     else if (optionPane.getValue().equals(options[1])){
                         optionPane.setValue(JOptionPane.UNINITIALIZED_VALUE);
+                        
+                        wrWorkSpinner.setEnabled(true);
+                        perfTaskSpinner.setEnabled(true);
+                        wrWorkHPS = null;
+                        perfTaskHPS = null;
+                        examHPS = 0;
+                        
+                        dialog.dispose();
+                    }
+                    else if (optionPane.getValue().equals(options[2])){
+                        optionPane.setValue(JOptionPane.UNINITIALIZED_VALUE);
                         dialog.dispose();
                     }
                 }
@@ -489,62 +532,74 @@ public class GradeGeneratorFrame extends JFrame {
                 "Null Exam HPS", JOptionPane.WARNING_MESSAGE);
                 return;
             }
-
-            try {
-                JFileChooser sourceFile = new JFileChooser();
-                sourceFile.showOpenDialog(rootPane);
-
-                FileReader fReader = new FileReader(sourceFile.getSelectedFile());
-                BufferedReader bReader = new BufferedReader(fReader);
-
-                ArrayList<Integer> tempScores = new ArrayList<Integer>();
-                
-                String scoreStr = null;
-                while ((scoreStr = bReader.readLine()) != null){
-
-                    if (scoreStr.isEmpty()){
-                        bReader.close();
-                        throw new IOException("Empty String Detected!");
-                    }
-
-                    Integer score = Integer.valueOf(scoreStr);
-
-                    if (score > examHPS){
-                        bReader.close();
-                        throw new IOException("Scores higher than HPS Detected!");
-                    }
-
-                    tempScores.add(score);
+            else if (examScores != null){
+                int response = JOptionPane.showConfirmDialog(rootPane, "Do you want to change the exam scores?", 
+                "Exam Scores", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
+                if (response == JOptionPane.YES_OPTION){
+                    setExamScores();
                 }
+            }
+            else {
+                setExamScores();
+            }
+        }
+    }
 
-                if (tempScores.size() != srcGrades.size()){
+    private void setExamScores(){
+        try {
+            JFileChooser sourceFile = new JFileChooser();
+            sourceFile.showOpenDialog(rootPane);
+
+            FileReader fReader = new FileReader(sourceFile.getSelectedFile());
+            BufferedReader bReader = new BufferedReader(fReader);
+
+            ArrayList<Integer> tempScores = new ArrayList<Integer>();
+            
+            String scoreStr = null;
+            while ((scoreStr = bReader.readLine()) != null){
+
+                if (scoreStr.isEmpty()){
                     bReader.close();
-                    throw new IOException("Exam Scores and Target Grades does not match.");
+                    throw new IOException("Empty String Detected!");
                 }
 
-                examScores = new int[srcGrades.size()];
-                for (int i = 0; i < examScores.length; ++i){
-                    examScores[i] = tempScores.get(i);
+                Integer score = Integer.valueOf(scoreStr);
+
+                if (score > examHPS){
+                    bReader.close();
+                    throw new IOException("Scores higher than HPS Detected!");
                 }
 
+                tempScores.add(score);
+            }
+
+            if (tempScores.size() != srcGrades.size()){
                 bReader.close();
+                throw new IOException("Exam Scores and Target Grades does not match.");
             }
-            catch (IOException e){
-                JOptionPane.showMessageDialog(rootPane, "IOException:\n" 
-                + e.getMessage(), "I/O Exception", JOptionPane.ERROR_MESSAGE);
+
+            examScores = new int[srcGrades.size()];
+            for (int i = 0; i < examScores.length; ++i){
+                examScores[i] = tempScores.get(i);
             }
-            catch (NumberFormatException e){
-                JOptionPane.showMessageDialog(rootPane, "NumberFormatException:\n" 
-                + e.getMessage(), "Number Format Exception", JOptionPane.ERROR_MESSAGE);
-            }
-            catch (NullPointerException e){
-                // Expected Exception
-            }
-            catch (Exception e){
-                e.printStackTrace();
-				JOptionPane.showMessageDialog(rootPane, "Unimplemented Exception:\n" 
-				+ e.getMessage(), "Error!", JOptionPane.ERROR_MESSAGE);
-            }
+
+            bReader.close();
+        }
+        catch (IOException e){
+            JOptionPane.showMessageDialog(rootPane, "IOException:\n" 
+            + e.getMessage(), "I/O Exception", JOptionPane.ERROR_MESSAGE);
+        }
+        catch (NumberFormatException e){
+            JOptionPane.showMessageDialog(rootPane, "NumberFormatException:\n" 
+            + e.getMessage(), "Number Format Exception", JOptionPane.ERROR_MESSAGE);
+        }
+        catch (NullPointerException e){
+            // Expected Exception
+        }
+        catch (Exception e){
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(rootPane, "Unimplemented Exception:\n" 
+            + e.getMessage(), "Error!", JOptionPane.ERROR_MESSAGE);
         }
     }
 
