@@ -30,6 +30,7 @@ public class GradeGeneratorFrame extends JFrame {
     private JTextField sourceField;
     private JLabel statusLabel;
     private JTextField statusField;
+    private JPanel bottomPanel;
     private JButton generateButton;
     private JButton resetButton;
 
@@ -39,6 +40,7 @@ public class GradeGeneratorFrame extends JFrame {
     private int[] perfTaskHPS;
     private int examHPS;
     private int[] examScores;
+    private String examFile;
 
     private static final String[] SUBJECTS = {"MTB","Filipino","English",
                                               "Math","AP", "ESP","Music",
@@ -208,7 +210,6 @@ public class GradeGeneratorFrame extends JFrame {
         
         constraints.gridx = 1;
         constraints.gridy = 0;
-        constraints.gridwidth = 3;
         constraints.anchor = GridBagConstraints.WEST;
         statusPanel.add(sourceField, constraints);
 
@@ -222,10 +223,28 @@ public class GradeGeneratorFrame extends JFrame {
         constraints.anchor = GridBagConstraints.WEST;
         statusPanel.add(statusField, constraints);
 
+        resetButton = new JButton("Reset");
+        resetButton.setFocusable(false);
+
+        resetButton.addActionListener(new ResetListener());
+
         generateButton = new JButton("Generate");
         generateButton.setFocusable(false);
 
         generateButton.addActionListener(new GenerateListener());
+
+        bottomPanel = new JPanel(new GridBagLayout());
+        constraints.insets = new Insets(5, 5, 5, 5);
+
+        constraints.gridx = 0;
+        constraints.gridy = 0;
+        constraints.anchor = GridBagConstraints.WEST;
+        bottomPanel.add(resetButton, constraints);
+
+        constraints.gridx = 1;
+        constraints.gridy = 0;
+        constraints.anchor = GridBagConstraints.EAST;
+        bottomPanel.add(generateButton, constraints);
 
         gradePanel = new JPanel(new GridBagLayout());
         constraints.insets = new Insets(10, 10, 10, 10);
@@ -247,8 +266,8 @@ public class GradeGeneratorFrame extends JFrame {
 
         constraints.gridx = 0;
         constraints.gridy = 3;
-        constraints.anchor = GridBagConstraints.SOUTH;
-        gradePanel.add(generateButton, constraints);
+        constraints.anchor = GridBagConstraints.CENTER;
+        gradePanel.add(bottomPanel, constraints);
 
         gradePanel.setBorder(BorderFactory.createLineBorder(Color.BLACK));
 
@@ -304,6 +323,15 @@ public class GradeGeneratorFrame extends JFrame {
 
                 Integer grade = Integer.valueOf(gradeStr);
 
+                if (grade > 100){
+                    bReader.close();
+                    throw new IOException("Grades must not exceed to 100.");
+                }
+                else if (grade <= 0){
+                    bReader.close();
+                    throw new IOException("Grades must be positive integer.");
+                }
+
                 tempGrades.add(grade);
             }
 
@@ -312,6 +340,12 @@ public class GradeGeneratorFrame extends JFrame {
             sourceField.setText(sourceStr);
 
             srcGrades = tempGrades;
+
+            System.out.println("srcGrades:");
+            for (int i = 0; i < srcGrades.size(); ++i){
+                System.out.print(srcGrades.get(i) + " ");
+            }
+            System.out.println();
 
             bReader.close();
         }
@@ -484,6 +518,18 @@ public class GradeGeneratorFrame extends JFrame {
                             perfTaskHPS = taskHPS;
                             examHPS = examTemp;
                             dialog.dispose();
+
+                            System.out.println("workHPS:");
+                            for (int i = 0; i < wrWorkHPS.length; ++i){
+                                System.out.print(wrWorkHPS[i] + " ");
+                            }
+                            System.out.println();
+                            System.out.println("taskHPS:");
+                            for (int i = 0; i < perfTaskHPS.length; ++i){
+                                System.out.print(perfTaskHPS[i] + " ");
+                            }
+                            System.out.println();
+                            System.out.println("examHPS: " + examHPS);
                         }
                         catch (NumberFormatException e){
                             JOptionPane.showMessageDialog(rootPane, "NumberFormatException:\n" 
@@ -569,6 +615,10 @@ public class GradeGeneratorFrame extends JFrame {
                     bReader.close();
                     throw new IOException("Scores higher than HPS Detected!");
                 }
+                else if (score <= 0){
+                    bReader.close();
+                    throw new IOException("Scores must be positive integer.");
+                }
 
                 tempScores.add(score);
             }
@@ -578,10 +628,18 @@ public class GradeGeneratorFrame extends JFrame {
                 throw new IOException("Exam Scores and Target Grades does not match.");
             }
 
+            examFile = sourceFile.getSelectedFile().toString();
+
             examScores = new int[srcGrades.size()];
             for (int i = 0; i < examScores.length; ++i){
                 examScores[i] = tempScores.get(i);
             }
+
+            System.out.println("Exam Scores:");
+            for (int i = 0; i < examScores.length; ++i){
+                System.out.print(examScores[i] + " ");
+            }
+            System.out.println();
 
             bReader.close();
         }
@@ -615,18 +673,140 @@ public class GradeGeneratorFrame extends JFrame {
                 "Null HPS", JOptionPane.WARNING_MESSAGE);
             }
             else {
-                grades = generateGrades(srcGrades, wrWorkHPS, perfTaskHPS);
+                int response = JOptionPane.showConfirmDialog(rootPane, "Exam Score Source:\n" + examFile + 
+                "\nDo you want to continue?", "Generate", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
+                if (response == JOptionPane.YES_OPTION){
+                    grades = generateGrades();
+                    //writeGrades();
+                }
             }
         }
     }
 
-    private ArrayList<Integer[]> generateGrades(ArrayList<Integer> srcGrades, int[] wrWorkHPS, int[] perfTaskHPS){
-        ArrayList<Integer[]> grades = null;
+    private ArrayList<Integer[]> generateGrades(){
+        ArrayList<Integer[]> grades = new ArrayList<Integer[]>();
 
         String subject = String.valueOf(subjectBox.getSelectedItem());
         Float[] weights = WEIGHTS.get(subject);
 
+        for (int i = 0; i < srcGrades.size(); ++i){
+            int grade = srcGrades.get(i);
+            double initialGrade = randomInitialGrade(grade);
+
+            double workWeight = initialGrade * weights[0];
+            double taskWeight = initialGrade * weights[1];
+            double examWeight = initialGrade * weights[2];
+
+            int examScore;
+            int[] workScores = new int[wrWorkHPS.length];
+            int[] taskScores = new int[perfTaskHPS.length];
+
+            int sumHPS = 0;
+            for (int j = 0; j < wrWorkHPS.length; ++j){
+                sumHPS += wrWorkHPS[j];
+            }
+            int workSum = Math.round((float)((workWeight * sumHPS) / (100 * weights[0])));
+
+            sumHPS = 0;
+            for (int j = 0; j < perfTaskHPS.length; ++j){
+                sumHPS += perfTaskHPS[j];
+            }
+            int taskSum = Math.round((float)((taskWeight * sumHPS) / (100 * weights[1])));
+
+            if (examScores != null){
+                examScore = examScores[i];
+            }
+            else {
+                examScore = Math.round((float)((examWeight * examHPS) / (100 * weights[2])));
+            }
+
+            System.out.println("Initial Grade: " + initialGrade);
+            System.out.println("Work Weight: " + workWeight);
+            System.out.println("Task Weight: " + taskWeight);
+            System.out.println("Exam Weight: " + examWeight);
+            System.out.println("Work Sum: " + workSum);
+            System.out.println("Task Sum: " + taskSum);
+            System.out.println("Exam Score: " + examScore);
+
+            Integer[] gradeRow = new Integer[2 + workScores.length + taskScores.length];
+
+            for (int j = 0; j < workScores.length; ++j){
+                gradeRow[j] = workScores[j];
+            }
+
+            for (int j = 0; j < taskScores.length; ++j){
+                gradeRow[workScores.length + j] = taskScores[j];
+            }
+
+            gradeRow[workScores.length + taskScores.length] = examScore;
+            gradeRow[workScores.length + taskScores.length + 1] = grade;
+
+            grades.add(gradeRow);
+        }
+
         return grades;
+    }
+
+    private double randomInitialGrade(int grade){
+        double initialGrade = 0.0;
+        if (grade < 75){
+            initialGrade = 4 * (grade - 60);
+            initialGrade += 4 * Math.random();
+        }
+        else {
+            initialGrade = 1.6 * (grade - 37.5);
+            initialGrade += 1.6 * Math.random();
+        }
+
+        return initialGrade;
+    }
+
+    private void writeGrades(){
+        try {
+            File sourceFile = new File(sourceField.getText());
+            FileWriter fWriter = new FileWriter(sourceFile);
+            BufferedWriter bWriter = new BufferedWriter(fWriter);
+
+            for (int i = 0; i < grades.size(); ++i){
+                for (int j = 0; j < grades.get(i).length; ++j){
+                    String valueStr = String.valueOf(grades.get(i)[j]);
+                    bWriter.write(valueStr);
+                    if (j < (grades.get(i).length - 1)){
+                        bWriter.write("\t");
+                    }
+                }
+                bWriter.write("\n");
+            }
+
+            bWriter.close();
+        }
+        catch (IOException e){
+            JOptionPane.showMessageDialog(rootPane, "IOException:\n" 
+            + e.getMessage(), "I/O Exception", JOptionPane.ERROR_MESSAGE);
+        }
+        catch (Exception e){
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(rootPane, "Unimplemented Exception:\n" 
+            + e.getMessage(), "Error!", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private class ResetListener implements ActionListener {
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            int response = JOptionPane.showConfirmDialog(rootPane, "Do you want to reset?", 
+            "Reset", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
+            if (response == JOptionPane.YES_OPTION){
+                srcGrades = null;
+                wrWorkHPS = null;
+                perfTaskHPS = null;
+                examHPS = 0;
+                examScores = null;
+                examFile = null;
+                sourceField.setText("");
+                statusField.setText("Please select a source file first.");
+            }
+        }
     }
     
     public static void main(String[] args){
