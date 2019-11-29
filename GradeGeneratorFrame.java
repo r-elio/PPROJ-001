@@ -85,14 +85,35 @@ public class GradeGeneratorFrame extends JFrame {
         helpSystem.addActionListener(new ActionListener(){
             @Override
             public void actionPerformed(ActionEvent event){
-
+                JOptionPane.showMessageDialog(rootPane, "Grade Generator (File Handling)\n" 
+                + "Grade 2 Grading System\n"
+                + "Created by Rajan Elio\n\n"
+                + "Features:\n"
+                + "- Adjustable WW and PT Items\n" 
+                + "- Optional setup of exam scores\n"
+                + "- Pseudo-randomly Generated Scores\n"
+                + "- Evenly Distributed Grade", "About System", JOptionPane.PLAIN_MESSAGE);
             }
         });
 
         helpProcess.addActionListener(new ActionListener(){
             @Override
             public void actionPerformed(ActionEvent event){
-                
+                JOptionPane.showMessageDialog(rootPane, "Steps:\n"
+                + "Step 1: Select the appropriate subject.\n"
+                + "Step 2: Set the WW Items and PT Items.\n"
+                + "Step 3: Select a source file for I/O.\n"
+                + "- It must contain the target grades\n"
+                + "- Each grade must be seperated with newline\n"
+                + "Step 4: Setup the HPS for every items.\n"
+                + "Step 5: (Optional) Select the file containing the exam scores.\n"
+                + "- Each score must be seperated with newline\n"
+                + "Step 6: Generate the scores by clicking the Generate Button.\n"
+                + "Step 7: Confirm the action and wait for completion feedback.\n"
+                + "Step 8: Browse and open the source file.\n"
+                + "(You can reset the configuration by clicking Reset Button.)\n"
+                + "(You can also reset only the items on the Setup HPS Dialog)", 
+                "User Guide", JOptionPane.PLAIN_MESSAGE);
             }
         });
 
@@ -701,8 +722,6 @@ public class GradeGeneratorFrame extends JFrame {
         String subject = String.valueOf(subjectBox.getSelectedItem());
         Float[] weights = WEIGHTS.get(subject);
 
-        statusField.setText("Please wait. Generating grades...");
-
         for (int i = 0; i < srcGrades.size(); ++i){
             int grade = srcGrades.get(i);
             double initialGrade = randomInitialGrade(grade);
@@ -886,6 +905,18 @@ public class GradeGeneratorFrame extends JFrame {
             File sourceFile = new File(sourceField.getText());
             FileWriter fWriter = new FileWriter(sourceFile);
             BufferedWriter bWriter = new BufferedWriter(fWriter);
+
+            for (int i = 0; i < wrWorkHPS.length; ++i){
+                bWriter.write("WW"+(i+1));
+                bWriter.write("\t");
+            }
+
+            for (int i = 0; i < perfTaskHPS.length; ++i){
+                bWriter.write("PT"+(i+1));
+                bWriter.write("\t");
+            }
+
+            bWriter.write("EX\tAVG\n");
 
             for (int i = 0; i < grades.size(); ++i){
                 for (int j = 0; j < grades.get(i).length; ++j){
