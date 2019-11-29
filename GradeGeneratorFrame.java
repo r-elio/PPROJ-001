@@ -108,13 +108,13 @@ public class GradeGeneratorFrame extends JFrame {
         subjectBox.setSelectedIndex(0);
         subjectBox.setFocusable(false);
 
-        SpinnerModel wrWorkModel = new SpinnerNumberModel(1, 1, 10, 1);
+        SpinnerModel wrWorkModel = new SpinnerNumberModel(6, 1, 10, 1);
         wrWorkLabel = new JLabel("WW Item:");
         wrWorkSpinner = new JSpinner(wrWorkModel);
         ((DefaultEditor)wrWorkSpinner.getEditor()).getTextField().setEditable(false);
         wrWorkLabel.setToolTipText("Written Works");
         
-        SpinnerModel perfTaskModel = new SpinnerNumberModel(1, 1, 10, 1);
+        SpinnerModel perfTaskModel = new SpinnerNumberModel(6, 1, 10, 1);
         perfTaskLabel = new JLabel("PT Item:");
         perfTaskSpinner = new JSpinner(perfTaskModel);
         ((DefaultEditor)perfTaskSpinner.getEditor()).getTextField().setEditable(false);
@@ -677,7 +677,6 @@ public class GradeGeneratorFrame extends JFrame {
                 "\nDo you want to continue?", "Generate", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
                 if (response == JOptionPane.YES_OPTION){
                     try {
-                        statusField.setText("Please wait. Generating grades...");
                         grades = generateGrades();
                         writeGrades();
                         statusField.setText("Generating completed. You may now check the source.");
@@ -702,6 +701,8 @@ public class GradeGeneratorFrame extends JFrame {
         String subject = String.valueOf(subjectBox.getSelectedItem());
         Float[] weights = WEIGHTS.get(subject);
 
+        statusField.setText("Please wait. Generating grades...");
+
         for (int i = 0; i < srcGrades.size(); ++i){
             int grade = srcGrades.get(i);
             double initialGrade = randomInitialGrade(grade);
@@ -709,31 +710,28 @@ public class GradeGeneratorFrame extends JFrame {
             System.out.println("Initial Grade: " + initialGrade);
 
             double examWeight;
+            double workWeight;
+            double taskWeight;
             int examScore;
+
             if (examScores != null){
                 examScore = examScores[i];
                 examWeight = (examScore * weights[2] * 100) / examHPS;
+                initialGrade -= examWeight;
+
+                if (initialGrade > (100 * (1 - weights[2]))){
+                    throw new IOException("Grade-Score Contradiction Occurred!");
+                }
+                
+                workWeight = initialGrade * (weights[0] / (1 - weights[2]));
+                taskWeight = initialGrade - workWeight;
             }
             else {
-                do {
-                    examScore = Math.round((float)(examHPS * Math.random()));
-                    examWeight = (examScore * weights[2] * 100) / examHPS;
-                } while ((initialGrade - examWeight) > (100 - weights[2] * 100));
+                workWeight = initialGrade * weights[0];
+                taskWeight = initialGrade * weights[1];
+                examWeight = initialGrade * weights[2];
+                examScore = Math.round((float)((examWeight * examHPS) / (100 * weights[2])));
             }
-
-            initialGrade -= examWeight;
-
-            if (initialGrade > (100 - weights[2] * 100)){
-                throw new IOException("Grade-Exam Contradiction Occurred.");
-            }
-
-            double workWeight;
-            double taskWeight;
-            do {
-                workWeight = initialGrade * Math.random();
-                taskWeight = initialGrade - workWeight;
-            } while (workWeight > (weights[0] * 100) || 
-                     taskWeight > (weights[1] * 100));
 
             int[] workScores = new int[wrWorkHPS.length];
             int[] taskScores = new int[perfTaskHPS.length];
@@ -861,21 +859,23 @@ public class GradeGeneratorFrame extends JFrame {
             grades.add(gradeRow);
         }
 
+        System.out.println("Grade Generation Completed.");
+
         return grades;
     }
 
     private double randomInitialGrade(int grade){
         double initialGrade = 0.0;
-        if (grade < 75){
+        if (grade == 100){
+            initialGrade = 100;
+        }
+        else if (grade < 75){
             initialGrade = 4 * (grade - 60);
             initialGrade += 4 * Math.random();
         }
         else if (grade >= 75){
             initialGrade = 1.6 * (grade - 37.5);
             initialGrade += 1.6 * Math.random();
-        }
-        else {
-            initialGrade = 100;
         }
 
         return initialGrade;
