@@ -663,7 +663,7 @@ public class GradeGeneratorFrame extends JFrame {
 
     private class GenerateListener implements ActionListener {
         @Override
-        public void actionPerformed(ActionEvent e) {
+        public void actionPerformed(ActionEvent event) {
             if (srcGrades == null){
                 JOptionPane.showMessageDialog(rootPane, "You must set the source file first.", 
                 "Null Source", JOptionPane.WARNING_MESSAGE);
@@ -676,14 +676,27 @@ public class GradeGeneratorFrame extends JFrame {
                 int response = JOptionPane.showConfirmDialog(rootPane, "Exam Score Source:\n" + examFile + 
                 "\nDo you want to continue?", "Generate", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
                 if (response == JOptionPane.YES_OPTION){
-                    grades = generateGrades();
-                    //writeGrades();
+                    try {
+                        statusField.setText("Please wait. Generating grades...");
+                        grades = generateGrades();
+                        writeGrades();
+                        statusField.setText("Generating completed. You may now check the source.");
+                    }
+                    catch (IOException e){
+                        JOptionPane.showMessageDialog(rootPane, "IOException:\n" 
+                        + e.getMessage(), "I/O Exception", JOptionPane.ERROR_MESSAGE);
+                    }
+                    catch (Exception e){
+                        e.printStackTrace();
+                        JOptionPane.showMessageDialog(rootPane, "Unimplemented Exception:\n" 
+                        + e.getMessage(), "Error!", JOptionPane.ERROR_MESSAGE);
+                    }
                 }
             }
         }
     }
 
-    private ArrayList<Integer[]> generateGrades(){
+    private ArrayList<Integer[]> generateGrades() throws IOException {
         ArrayList<Integer[]> grades = new ArrayList<Integer[]>();
 
         String subject = String.valueOf(subjectBox.getSelectedItem());
@@ -693,11 +706,35 @@ public class GradeGeneratorFrame extends JFrame {
             int grade = srcGrades.get(i);
             double initialGrade = randomInitialGrade(grade);
 
-            double workWeight = initialGrade * weights[0];
-            double taskWeight = initialGrade * weights[1];
-            double examWeight = initialGrade * weights[2];
+            System.out.println("Initial Grade: " + initialGrade);
 
+            double examWeight;
             int examScore;
+            if (examScores != null){
+                examScore = examScores[i];
+                examWeight = (examScore * weights[2] * 100) / examHPS;
+            }
+            else {
+                do {
+                    examScore = Math.round((float)(examHPS * Math.random()));
+                    examWeight = (examScore * weights[2] * 100) / examHPS;
+                } while ((initialGrade - examWeight) > (100 - weights[2] * 100));
+            }
+
+            initialGrade -= examWeight;
+
+            if (initialGrade > (100 - weights[2] * 100)){
+                throw new IOException("Grade-Exam Contradiction Occurred.");
+            }
+
+            double workWeight;
+            double taskWeight;
+            do {
+                workWeight = initialGrade * Math.random();
+                taskWeight = initialGrade - workWeight;
+            } while (workWeight > (weights[0] * 100) || 
+                     taskWeight > (weights[1] * 100));
+
             int[] workScores = new int[wrWorkHPS.length];
             int[] taskScores = new int[perfTaskHPS.length];
 
@@ -713,20 +750,100 @@ public class GradeGeneratorFrame extends JFrame {
             }
             int taskSum = Math.round((float)((taskWeight * sumHPS) / (100 * weights[1])));
 
-            if (examScores != null){
-                examScore = examScores[i];
-            }
-            else {
-                examScore = Math.round((float)((examWeight * examHPS) / (100 * weights[2])));
-            }
-
-            System.out.println("Initial Grade: " + initialGrade);
             System.out.println("Work Weight: " + workWeight);
             System.out.println("Task Weight: " + taskWeight);
             System.out.println("Exam Weight: " + examWeight);
-            System.out.println("Work Sum: " + workSum);
-            System.out.println("Task Sum: " + taskSum);
+
             System.out.println("Exam Score: " + examScore);
+
+            System.out.println("Work Sum: " + workSum);
+            int sum = 0;
+            int index = 0;
+            do {
+                if ((index + 1) < workScores.length){
+                    workScores[index] = Math.round((float)(wrWorkHPS[index] * Math.random()));
+                }
+                else if ((index + 1) == workScores.length){
+                    sum = 0;
+                    for (int j = 0; j < workScores.length; ++j){
+                        sum += workScores[j];
+                    }
+
+                    workScores[index] = workSum - sum;
+
+                    if (workScores[index] > wrWorkHPS[index] || workScores[index] < 0){
+                        index = -1;
+                        for (int j = 0; j < workScores.length; ++j){
+                            workScores[j] = 0;
+                        }
+                    }
+                }
+                else {
+                    index = -1;
+                    for (int j = 0; j < workScores.length; ++j){
+                        workScores[j] = 0;
+                    }
+                }
+                
+                sum = 0;
+                for (int j = 0; j < workScores.length; ++j){
+                    sum += workScores[j];
+                }
+
+                ++index;
+
+            } while (sum != workSum);
+
+            System.out.println("Work Scores:");
+            for (int j = 0; j < workScores.length; ++j){
+                System.out.print(workScores[j] + " ");
+            }
+            System.out.println();
+
+
+            System.out.println("Task Sum: " + taskSum);
+            sum = 0;
+            index = 0;
+            do {
+                if ((index + 1) < taskScores.length){
+                    taskScores[index] = Math.round((float)(perfTaskHPS[index] * Math.random()));
+                }
+                else if ((index + 1) == taskScores.length){
+                    sum = 0;
+                    for (int j = 0; j < taskScores.length; ++j){
+                        sum += taskScores[j];
+                    }
+
+                    taskScores[index] = taskSum - sum;
+
+                    if (taskScores[index] > perfTaskHPS[index] || taskScores[index] < 0){
+                        index = -1;
+                        for (int j = 0; j < taskScores.length; ++j){
+                            taskScores[j] = 0;
+                        }
+                    }
+                }
+                else {
+                    index = -1;
+                    for (int j = 0; j < taskScores.length; ++j){
+                        taskScores[j] = 0;
+                    }
+                }
+                
+                sum = 0;
+                for (int j = 0; j < taskScores.length; ++j){
+                    sum += taskScores[j];
+                }
+
+                ++index;
+
+            } while (sum != taskSum);
+
+            System.out.println("Task Scores:");
+            for (int j = 0; j < taskScores.length; ++j){
+                System.out.print(taskScores[j] + " ");
+            }
+            System.out.println();
 
             Integer[] gradeRow = new Integer[2 + workScores.length + taskScores.length];
 
@@ -753,9 +870,12 @@ public class GradeGeneratorFrame extends JFrame {
             initialGrade = 4 * (grade - 60);
             initialGrade += 4 * Math.random();
         }
-        else {
+        else if (grade >= 75){
             initialGrade = 1.6 * (grade - 37.5);
             initialGrade += 1.6 * Math.random();
+        }
+        else {
+            initialGrade = 100;
         }
 
         return initialGrade;
@@ -805,6 +925,8 @@ public class GradeGeneratorFrame extends JFrame {
                 examFile = null;
                 sourceField.setText("");
                 statusField.setText("Please select a source file first.");
+                wrWorkSpinner.setEnabled(true);
+                perfTaskSpinner.setEnabled(true);
             }
         }
     }
